@@ -22,3 +22,162 @@
 #
 # The entire stack must start with a single: docker compose up
 # ============================================================================
+
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────
+#  ModelServe — local development stack
+#  Sessions 1-2 : postgres + mlflow + redis  (uncomment rest later)
+#  Sessions 3-4 : uncomment fastapi
+#  Sessions 4+  : uncomment prometheus + grafana
+# ─────────────────────────────────────────────────────────────
+
+networks:
+  modelserve:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:
+  grafana_data:
+
+services:
+
+  # ── 1. PostgreSQL ─────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: modelserve-postgres
+    restart: unless-stopped
+    networks: [modelserve]
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-mlflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlflow}
+      POSTGRES_DB:       ${POSTGRES_DB:-mlflow}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mlflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── 2. Redis (Feast online store) ─────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: modelserve-redis
+    restart: unless-stopped
+    networks: [modelserve]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── 3. MLflow Tracking Server ─────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.2
+    container_name: modelserve-mlflow
+    restart: unless-stopped
+    networks: [modelserve]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    environment:
+      MLFLOW_TRACKING_URI: postgresql+psycopg2://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow}
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-ap-southeast-1}
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    command: >
+      sh -c "pip install psycopg2-binary && mlflow server
+      --backend-store-uri postgresql+psycopg2://${POSTGRES_USER:-mlflow}:${POSTGRES_PASSWORD:-mlflow}@postgres:5432/${POSTGRES_DB:-mlflow}
+      --artifacts-destination /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── 4. FastAPI Inference Service ──────────────────────────
+  #  Uncomment in Session 2 once app/main.py exists
+  # fastapi:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: modelserve-fastapi
+  #   restart: unless-stopped
+  #   networks: [modelserve]
+  #   depends_on:
+  #     mlflow:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     MLFLOW_TRACKING_URI: http://mlflow:5000
+  #     MODEL_NAME:          ${MODEL_NAME:-FraudDetector}
+  #     MODEL_STAGE:         ${MODEL_STAGE:-Production}
+  #     REDIS_HOST:          redis
+  #     REDIS_PORT:          6379
+  #     FEAST_REPO_PATH:     /app/feast_repo
+  #     AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+  #     AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-ap-southeast-1}
+  #   volumes:
+  #     - ./feast_repo:/app/feast_repo:ro
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # ── 5. Prometheus ─────────────────────────────────────────
+  #  Uncomment in Session 3-4
+  # prometheus:
+  #   image: prom/prometheus:v2.52.0
+  #   container_name: modelserve-prometheus
+  #   restart: unless-stopped
+  #   networks: [modelserve]
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+  #   command:
+  #     - "--config.file=/etc/prometheus/prometheus.yml"
+  #     - "--storage.tsdb.path=/prometheus"
+  #     - "--web.enable-lifecycle"
+  #   healthcheck:
+  #     test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # ── 6. Grafana ────────────────────────────────────────────
+  #  Uncomment in Session 3-4
+  # grafana:
+  #   image: grafana/grafana:10.4.3
+  #   container_name: modelserve-grafana
+  #   restart: unless-stopped
+  #   networks: [modelserve]
+  #   depends_on:
+  #     - prometheus
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+  #     GF_USERS_ALLOW_SIGN_UP:     "false"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro

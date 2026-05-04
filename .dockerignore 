@@ -1,0 +1,39 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Data — too large
+training/*.csv
+training/fraudTrain.csv
+training/fraudTest.csv
+
+# MLflow local runs
+mlruns/
+
+# Secrets
+.env
+*.pem
+*.key
+
+# Git
+.git/
+.gitignore
+
+# Docs
+docs/
+*.md
+
+# Infrastructure (not needed in app image)
+infrastructure/
+monitoring/
+
+# OS
+.DS_Store
+Thumbs.db
