@@ -1,30 +1,45 @@
-# ============================================================================
 # ModelServe — Prometheus Alert Rules
-# ============================================================================
-# TODO: Define at least THREE alert rules.
-#
-# Required alerts:
-#   1. High prediction latency
-#      - Trigger when p95 latency exceeds your chosen threshold for 5 minutes
-#      - Hint: histogram_quantile(0.95, rate(prediction_duration_seconds_bucket[5m]))
-#      - Severity: warning
-#
-#   2. Elevated error rate
-#      - Trigger when error rate exceeds 5% for 2 minutes
-#      - Hint: rate(prediction_errors_total[2m]) / rate(prediction_requests_total[2m])
-#      - Severity: warning
-#
-#   3. Service down
-#      - Trigger when the FastAPI service is unreachable for 1 minute
-#      - Hint: up{job="your-job-name"} == 0
-#      - Severity: critical
-#
-# Each alert needs:
-#   - alert: <name>
-#   - expr: <PromQL expression>
-#   - for: <duration>
-#   - labels: severity
-#   - annotations: summary and description
-#
-# The TA will verify these alerts exist and may trigger them during the demo.
-# ============================================================================
+# =====================================
+# Defines alerts for the inference service.
+
+groups:
+  - name: modelserve_alerts
+    interval: 30s
+    rules:
+      # Alert 1: Service Down
+      # Triggers when FastAPI is unreachable for 1 minute
+      - alert: ServiceDown
+        expr: up{job="fastapi"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "FastAPI service is down"
+          description: "The FastAPI inference service has been unreachable for 1 minute."
+
+      # Alert 2: High Prediction Latency
+      # Triggers when p95 latency exceeds 1 second for 5 minutes
+      - alert: HighPredictionLatency
+        expr: histogram_quantile(0.95, rate(prediction_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High prediction latency detected"
+          description: "P95 prediction latency is above 1 second for 5 minutes."
+
+      # Alert 3: High Error Rate
+      # Triggers when error rate exceeds 5% for 2 minutes
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(prediction_errors_total[2m])
+            /
+            rate(prediction_requests_total[2m])
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Prediction error rate is above 5% for 2 minutes."

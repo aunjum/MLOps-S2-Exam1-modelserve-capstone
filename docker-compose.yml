@@ -1,35 +1,12 @@
 # ============================================================================
 # ModelServe — Docker Compose (Local Development)
 # ============================================================================
-# TODO: Define your complete local development stack.
-#
-# Required services:
-#   - PostgreSQL (MLflow backend store)
-#   - Redis (Feast online store)
-#   - MLflow Tracking Server (depends on Postgres)
-#   - FastAPI Inference Service (depends on MLflow, Redis)
-#   - Prometheus (scrapes FastAPI /metrics) — add in Sessions 3-4
-#   - Grafana (reads from Prometheus) — add in Sessions 3-4
-#
-# For each service, consider:
-#   - Which Docker image to use
-#   - What ports to expose
-#   - What environment variables to pass
-#   - What volumes to mount for persistence
-#   - What healthcheck to configure
-#   - What depends_on relationships exist
-#   - What network to attach to
-#
-# The entire stack must start with a single: docker compose up
-# ============================================================================
+# Complete local development stack with all services.
 
 version: "3.9"
 
 # ─────────────────────────────────────────────────────────────
-#  ModelServe — local development stack
-#  Sessions 1-2 : postgres + mlflow + redis  (uncomment rest later)
-#  Sessions 3-4 : uncomment fastapi
-#  Sessions 4+  : uncomment prometheus + grafana
+#  Networks & Volumes
 # ─────────────────────────────────────────────────────────────
 
 networks:
@@ -108,76 +85,73 @@ services:
       retries: 10
 
   # ── 4. FastAPI Inference Service ──────────────────────────
-  #  Uncomment in Session 2 once app/main.py exists
-  # fastapi:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   container_name: modelserve-fastapi
-  #   restart: unless-stopped
-  #   networks: [modelserve]
-  #   depends_on:
-  #     mlflow:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     MLFLOW_TRACKING_URI: http://mlflow:5000
-  #     MODEL_NAME:          ${MODEL_NAME:-FraudDetector}
-  #     MODEL_STAGE:         ${MODEL_STAGE:-Production}
-  #     REDIS_HOST:          redis
-  #     REDIS_PORT:          6379
-  #     FEAST_REPO_PATH:     /app/feast_repo
-  #     AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
-  #     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-  #     AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-ap-southeast-1}
-  #   volumes:
-  #     - ./feast_repo:/app/feast_repo:ro
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: modelserve-fastapi
+    restart: unless-stopped
+    networks: [modelserve]
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_NAME:          ${MODEL_NAME:-FraudDetector}
+      MODEL_STAGE:         ${MODEL_STAGE:-Production}
+      REDIS_HOST:          redis
+      REDIS_PORT:          6379
+      FEAST_REPO_PATH:     /app/feast_repo
+      AWS_ACCESS_KEY_ID:     ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-ap-southeast-1}
+    volumes:
+      - ./feast_repo:/app/feast_repo:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ── 5. Prometheus ─────────────────────────────────────────
-  #  Uncomment in Session 3-4
-  # prometheus:
-  #   image: prom/prometheus:v2.52.0
-  #   container_name: modelserve-prometheus
-  #   restart: unless-stopped
-  #   networks: [modelserve]
-  #   ports:
-  #     - "9090:9090"
-  #   volumes:
-  #     - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-  #     - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-  #   command:
-  #     - "--config.file=/etc/prometheus/prometheus.yml"
-  #     - "--storage.tsdb.path=/prometheus"
-  #     - "--web.enable-lifecycle"
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: modelserve-prometheus
+    restart: unless-stopped
+    networks: [modelserve]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ── 6. Grafana ────────────────────────────────────────────
-  #  Uncomment in Session 3-4
-  # grafana:
-  #   image: grafana/grafana:10.4.3
-  #   container_name: modelserve-grafana
-  #   restart: unless-stopped
-  #   networks: [modelserve]
-  #   depends_on:
-  #     - prometheus
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
-  #     GF_USERS_ALLOW_SIGN_UP:     "false"
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-  #     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: modelserve-grafana
+    restart: unless-stopped
+    networks: [modelserve]
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro

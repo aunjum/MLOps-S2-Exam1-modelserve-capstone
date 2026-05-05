@@ -1,39 +1,140 @@
 # ============================================================================
 # ModelServe — GitHub Actions CI/CD Pipeline
 # ============================================================================
-# TODO: Implement the full CI/CD pipeline.
-#
-# Required jobs:
-#
-#   1. test
-#      - Triggers on: every push and pull request
-#      - Steps: checkout, setup Python, install dependencies, run pytest
-#      - Must pass before any other job runs
-#
-#   2. build-and-push
-#      - Triggers on: push to main only (after test passes)
-#      - Steps: checkout, configure AWS credentials, login to ECR,
-#               build Docker image, tag with :latest and :$GITHUB_SHA,
-#               push to ECR
-#      - Needs: test
-#
-#   3. deploy
-#      - Triggers on: push to main only (after build-and-push passes)
-#      - Steps: connect to deployment target, pull new images,
-#               restart services, verify health endpoint returns 200
-#      - Needs: build-and-push
-#
-# Optional additional jobs:
-#   - infrastructure: run pulumi up before build-and-push
-#   - lint: run flake8 or ruff
-#   - security-scan: run Trivy on built images (bonus marks)
-#
-# Required GitHub Secrets (document these in your README):
-#   - AWS_ACCESS_KEY_ID
-#   - AWS_SECRET_ACCESS_KEY
-#   - PULUMI_ACCESS_TOKEN
-#   - SSH_PRIVATE_KEY (if deploying to EC2 via SSH)
-#   - SSH_PUBLIC_KEY (if Pulumi creates key pairs)
-#
-# Refer to the Pulumi/CI/CD lab from Episodes 2-3 for patterns.
+# Full CI/CD pipeline: test → build-and-push → deploy
 # ============================================================================
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  IMAGE_NAME: fastapi-app
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  #  Job 1: Test
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pytest app/tests/ -v
+
+  # ─────────────────────────────────────────────────────────
+  #  Job 2: Build and Push
+  # ─────────────────────────────────────────────────────────
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$IMAGE_NAME:latest .
+          docker build -t $ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$IMAGE_NAME:latest
+          docker push $ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+
+  # ─────────────────────────────────────────────────────────
+  #  Job 3: Deploy
+  # ─────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Add EC2 host to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > /tmp/ec2_key
+          chmod 600 /tmp/ec2_key
+
+          # Copy docker-compose.yml and configs to EC2
+          scp -i /tmp/ec2_key -o StrictHostKeyChecking=no docker-compose.yml $EC2_USER@$EC2_HOST:~/
+          scp -i /tmp/ec2_key -o StrictHostKeyChecking=no -r monitoring $EC2_USER@$EC2_HOST:~/
+          scp -i /tmp/ec2_key -o StrictHostKeyChecking=no -r feast_repo $EC2_USER@$EC2_HOST:~/
+          scp -i /tmp/ec2_key -o StrictHostKeyChecking=no .env $EC2_USER@$EC2_HOST:~/
+
+          # Login to ECR on EC2
+          ssh -i /tmp/ec2_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
+            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY"
+
+          # Pull and restart services
+          ssh -i /tmp/ec2_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
+            "docker-compose pull && docker-compose up -d"
+
+      - name: Wait for service to be ready
+        run: sleep 30
+
+      - name: Verify health endpoint
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          curl -f http://$EC2_HOST:8000/health || exit 1

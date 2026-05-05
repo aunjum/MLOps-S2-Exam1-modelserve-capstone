@@ -1,26 +1,55 @@
 # ============================================================================
 # ModelServe — Feast Feature Definitions
 # ============================================================================
-# TODO: Define your Feast entities, data sources, and feature views.
-#
-# You need to create:
-#
-#   1. Entity — the credit card number (cc_num) from the dataset
-#      - This is the join key for feature lookups
-#
-#   2. FileSource (or S3 source) — points to your features.parquet file
-#      - Must specify the timestamp_field for point-in-time joins
-#
-#   3. FeatureView — maps the entity to features from the data source
-#      - List every feature with its data type (Float64, Int64, String, etc.)
-#      - Set a TTL (time-to-live) for feature freshness
-#
-# The features defined here must match exactly what train.py exports
-# to features.parquet and what the FastAPI service requests from Feast.
-#
-# After defining these, run:
-#   cd feast_repo && feast apply
-#   python scripts/materialize_features.py
-#
-# Refer to Feast documentation: https://docs.feast.dev/
+# Defines Feast entities, data sources, and feature views.
 # ============================================================================
+
+from feast import Entity, FileSource, FeatureView, Field
+from feast.types import Float64, Int64, String
+from datetime import timedelta
+
+
+# ─────────────────────────────────────────────────────────────
+#  Entity: Credit Card Number
+# ─────────────────────────────────────────────────────────────
+
+cc_num = Entity(
+    name="cc_num",
+    description="Credit card number (entity key)",
+    value_type=Int64,
+)
+
+
+# ─────────────────────────────────────────────────────────────
+#  Data Source: features.parquet
+# ─────────────────────────────────────────────────────────────
+
+fraud_source = FileSource(
+    name="fraud_source",
+    path="training/features.parquet",
+    timestamp_field="event_timestamp",
+    created_timestamp_column="created_at",
+)
+
+
+# ─────────────────────────────────────────────────────────────
+#  Feature View: All features for fraud detection
+# ─────────────────────────────────────────────────────────────
+
+fraud_features = FeatureView(
+    name="fraud_features",
+    entities=[cc_num],
+    ttl=timedelta(days=30),
+    schema=[
+        Field(name="amt", dtype=Float64, description="Transaction amount"),
+        Field(name="category_enc", dtype=Int64, description="Encoded category"),
+        Field(name="trans_hour", dtype=Int64, description="Transaction hour (0-23)"),
+        Field(name="trans_dow", dtype=Int64, description="Day of week (0-6)"),
+        Field(name="city_pop", dtype=Int64, description="City population"),
+        Field(name="merch_lat", dtype=Float64, description="Merchant latitude"),
+        Field(name="merch_long", dtype=Float64, description="Merchant longitude"),
+    ],
+    online=True,
+    source=fraud_source,
+    description="Fraud detection features for each credit card transaction",
+)
