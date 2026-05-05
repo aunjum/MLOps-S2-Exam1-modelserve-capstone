@@ -13,8 +13,10 @@ from fastapi.testclient import TestClient
 @pytest.fixture(autouse=True)
 def mock_dependencies():
     """Mock MLflow model and Feast client for testing."""
+    # load() is mocked so self.model is never set; is_loaded() must be mocked too
     with patch('app.model_loader.ModelLoader.load') as mock_load, \
          patch('app.model_loader.ModelLoader.predict') as mock_predict, \
+         patch('app.model_loader.ModelLoader.is_loaded', return_value=True), \
          patch('app.feature_client.FeatureClient.get_features') as mock_features:
         # Setup mocks
         mock_load.return_value = True

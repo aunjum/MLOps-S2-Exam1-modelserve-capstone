@@ -40,7 +40,9 @@
 
 ## Engineering Documentation
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full architecture documentation, ADRs, runbook, and known limitations.
+- **[docs/README.md](docs/README.md)** — documentation index  
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system overview, Mermaid architecture diagrams, five ADRs, CI/CD, runbook, known limitations  
+- **[docs/diagrams/](docs/diagrams/)** — how to export diagrams from the Mermaid in `ARCHITECTURE.md`
 
 ## Dataset
 
