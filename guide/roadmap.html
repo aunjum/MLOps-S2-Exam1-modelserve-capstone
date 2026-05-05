@@ -1,0 +1,619 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.top-bar{padding:12px 16px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top-bar h1{font-size:16px;font-weight:500;color:var(--color-text-primary)}
+.meta{font-size:12px;color:var(--color-text-secondary)}
+.warn-bar{background:var(--color-background-warning);border-bottom:0.5px solid var(--color-border-warning);padding:7px 16px;font-size:12px;color:var(--color-text-warning);display:flex;gap:16px;flex-wrap:wrap}
+.warn-item b{font-weight:500}
+
+.session-nav{display:flex;gap:4px;padding:10px 16px;border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto;flex-wrap:wrap}
+.snav-btn{font-size:12px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);cursor:pointer;white-space:nowrap;transition:all 0.15s}
+.snav-btn.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.snav-btn:hover:not(.active){background:var(--color-background-secondary)}
+
+.main{padding:14px 16px}
+.session-panel{display:none}
+.session-panel.active{display:block}
+
+.session-header{margin-bottom:12px}
+.session-title{font-size:15px;font-weight:500;color:var(--color-text-primary)}
+.session-subtitle{font-size:12px;color:var(--color-text-secondary);margin-top:3px}
+
+.hour-block{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;overflow:hidden}
+.hour-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--color-background-secondary);cursor:pointer;user-select:none}
+.hour-header:hover{background:var(--color-background-tertiary)}
+.hour-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);padding:2px 8px;border-radius:20px;min-width:80px;text-align:center;white-space:nowrap}
+.hour-title{font-size:13px;font-weight:500;color:var(--color-text-primary);flex:1}
+.hour-badge{font-size:11px;padding:2px 7px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.b-m{background:var(--color-background-danger);color:var(--color-text-danger)}
+.b-c{background:var(--color-background-info);color:var(--color-text-info)}
+.b-b{background:var(--color-background-success);color:var(--color-text-success)}
+.b-w{background:var(--color-background-warning);color:var(--color-text-warning)}
+.chevron{font-size:11px;color:var(--color-text-tertiary);transition:transform 0.2s;flex-shrink:0}
+.hour-block.open .chevron{transform:rotate(90deg)}
+
+.hour-body{display:none;border-top:0.5px solid var(--color-border-tertiary);padding:10px 12px}
+.hour-block.open .hour-body{display:block}
+
+.tasks{list-style:none}
+.tasks li{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;color:var(--color-text-primary)}
+.tasks li:last-child{border-bottom:none}
+.tasks li input{margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:var(--color-text-success)}
+.tasks li.done span{text-decoration:line-through;color:var(--color-text-tertiary)}
+.tasks li .tag{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--color-background-secondary);color:var(--color-text-tertiary);margin-left:auto;flex-shrink:0}
+.tasks li .note{font-size:11px;color:var(--color-text-tertiary);display:block;margin-top:2px;line-height:1.5}
+
+.tip-inline{background:var(--color-background-info);border-left:3px solid var(--color-border-info);padding:6px 10px;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;margin:8px 0 0;font-size:12px;color:var(--color-text-info);line-height:1.6}
+
+.progress-strip{padding:8px 16px;border-top:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:10px}
+.prog-bar{flex:1;height:4px;background:var(--color-background-secondary);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--color-text-success);border-radius:2px;transition:width 0.3s;width:0%}
+.prog-lbl{font-size:12px;color:var(--color-text-secondary);min-width:52px;text-align:right}
+
+.session-end-note{background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:8px 12px;margin-top:10px;font-size:12px;color:var(--color-text-warning);line-height:1.6}
+</style>
+
+<h2 class="sr-only">ModelServe capstone — 8 sessions, 2.5 hours each, hour-by-hour checklist</h2>
+
+<div class="top-bar">
+  <h1>ModelServe — 8 Sessions × 2.5 hrs</h1>
+  <span class="meta">20 total hours · mandatory first · submission May 7 midnight</span>
+</div>
+<div class="warn-bar">
+  <span class="warn-item"><b>Mandatory</b> = Layers 1–5 (model, API, Docker, Pulumi, CI/CD)</span>
+  <span class="warn-item"><b>Compulsory</b> = Layer 6 (Engineering Docs, 19 marks)</span>
+  <span class="warn-item"><b>Bonus</b> = Layer 7, only after everything else done</span>
+</div>
+
+<div class="session-nav">
+  <button class="snav-btn active" onclick="showSession(0,this)">S1 · Model</button>
+  <button class="snav-btn" onclick="showSession(1,this)">S2 · FastAPI</button>
+  <button class="snav-btn" onclick="showSession(2,this)">S3 · Docker</button>
+  <button class="snav-btn" onclick="showSession(3,this)">S4 · Monitoring</button>
+  <button class="snav-btn" onclick="showSession(4,this)">S5 · Pulumi</button>
+  <button class="snav-btn" onclick="showSession(5,this)">S6 · Deploy</button>
+  <button class="snav-btn" onclick="showSession(6,this)">S7 · CI/CD</button>
+  <button class="snav-btn" onclick="showSession(7,this)">S8 · Docs+Demo</button>
+</div>
+
+<div class="main">
+
+<!-- SESSION 1 -->
+<div class="session-panel active" id="s0">
+  <div class="session-header">
+    <div class="session-title">Session 1 — Model training + MLflow</div>
+    <div class="session-subtitle">Goal: train.py working, model in MLflow Registry at Production stage, features.parquet + sample_request.json ready</div>
+  </div>
+
+  <div class="hour-block open" id="s0h1">
+    <div class="hour-header" onclick="toggleHour('s0h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">Setup + data exploration</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s0h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>Fork starter repo, clone to Poridhi VM<span class="note">git clone, confirm directory structure matches exam doc</span></span><span class="tag">setup</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Download fraudTrain.csv, run quick pandas describe to understand columns<span class="note">Check cc_num (entity key), class column (0/1), feature columns</span></span><span class="tag">data</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Start docker-compose.yml stub — add MLflow + Postgres services only<span class="note">MLflow: port 5000, MLFLOW_TRACKING_URI=postgresql://...</span></span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run docker compose up — confirm MLflow UI accessible at :5000</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Create virtual env, install: scikit-learn, mlflow, pandas, xgboost, lightgbm</span><span class="tag">setup</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s0h2">
+    <div class="hour-header" onclick="toggleHour('s0h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">Write train.py + register model</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s0h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write train.py — load CSV, basic feature engineering, train with class_weight='balanced'<span class="note">Any sklearn/XGBoost/LightGBM estimator. Accuracy is NOT the goal.</span></span><span class="tag">model</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Log metrics to MLflow: f1_score, precision, recall, roc_auc<span class="note">mlflow.log_metric() for each. Also log all model params.</span></span><span class="tag">mlflow</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Register model: mlflow.sklearn.log_model() then set stage = "Production"</span><span class="tag">mlflow</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Verify model visible in MLflow UI with metrics, params, and Production stage</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run train.py a second time — confirm new version registered with comparable metrics<span class="note">Reproducibility check required by exam</span></span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s0h3">
+    <div class="hour-header" onclick="toggleHour('s0h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">features.parquet + push</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s0h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Generate features.parquet — select feature columns + cc_num + event_timestamp<span class="note">Feast needs an event_timestamp column. Add a fixed timestamp if needed.</span></span><span class="tag">feast</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write sample_request.json — {"entity_id": &lt;valid cc_num from dataset&gt;}</span><span class="tag">api</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit -m "Session 1: train.py, MLflow model, features.parquet" && git push</span><span class="tag">ops</span></li>
+      </ul>
+      <div class="tip-inline">Session ends: push everything. The VM will be destroyed. Nothing unpushed survives.</div>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: pulumi destroy is not needed yet (no AWS resources). Confirm green on GitHub.</div>
+</div>
+
+<!-- SESSION 2 -->
+<div class="session-panel" id="s1">
+  <div class="session-header">
+    <div class="session-title">Session 2 — FastAPI inference service + Feast + Docker Compose</div>
+    <div class="session-subtitle">Goal: curl POST /predict returns valid prediction. curl /health returns 200. All via docker compose up.</div>
+  </div>
+
+  <div class="hour-block open" id="s1h1">
+    <div class="hour-header" onclick="toggleHour('s1h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">Feast setup + Redis materialization</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s1h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull, docker compose up — confirm Session 1 stack still runs</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add Redis to docker-compose.yml (port 6379)</span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write feast_repo/feature_store.yaml — online_store: type: redis, connection_string: redis:6379<span class="note">offline_store: type: file pointing to features.parquet</span></span><span class="tag">feast</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write feast_repo/feature_definitions.py — Entity(cc_num), FeatureView with all feature columns</span><span class="tag">feast</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run: feast apply && feast materialize-incremental $(date -u +%Y-%m-%dT%H:%M:%S)<span class="note">Verify features are now in Redis</span></span><span class="tag">feast</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s1h2">
+    <div class="hour-header" onclick="toggleHour('s1h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">FastAPI — all 4 endpoints</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s1h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write app/model_loader.py — loads model from MLflow Registry on startup (not per request)<span class="note">mlflow.pyfunc.load_model("models:/FraudDetector/Production")</span></span><span class="tag">api</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write app/feature_client.py — wraps Feast get_online_features() SDK call</span><span class="tag">api</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write app/metrics.py — define prediction_requests_total, prediction_duration_seconds, prediction_errors_total, model_version_info counters</span><span class="tag">metrics</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write app/main.py — GET /health, POST /predict, GET /predict/{id}?explain=true, GET /metrics</span><span class="tag">api</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add FastAPI service to docker-compose.yml (depends on MLflow, Postgres, Redis)</span><span class="tag">docker</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s1h3">
+    <div class="hour-header" onclick="toggleHour('s1h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">Smoke test all endpoints + push</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s1h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>docker compose up — all 4 services start without errors</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>curl http://localhost:8000/health → 200 with model_version field</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>curl -X POST http://localhost:8000/predict -d @sample_request.json → valid prediction JSON</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>curl http://localhost:8000/metrics → Prometheus text with prediction_requests_total</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit && git push</span><span class="tag">ops</span></li>
+      </ul>
+      <div class="tip-inline">If /predict fails: check Feast materialization ran, Redis is reachable, model name in MLflow matches model_loader.py exactly.</div>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: git push. No AWS resources yet, no pulumi destroy needed.</div>
+</div>
+
+<!-- SESSION 3 -->
+<div class="session-panel" id="s2">
+  <div class="session-header">
+    <div class="session-title">Session 3 — Multi-stage Dockerfile + Prometheus + Grafana</div>
+    <div class="session-subtitle">Goal: image &lt;800MB, non-root user, Grafana auto-provisions dashboard on docker compose up, 3 alert rules visible in Prometheus.</div>
+  </div>
+
+  <div class="hour-block open" id="s2h1">
+    <div class="hour-header" onclick="toggleHour('s2h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">Multi-stage Dockerfile</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s2h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull, docker compose up — confirm Session 2 still works</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write multi-stage Dockerfile: FROM python:3.10-slim AS builder → pip install → FROM python:3.10-slim AS runtime</span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Runtime stage: RUN useradd appuser, USER appuser, CMD gunicorn with uvicorn workers</span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1</span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>docker build . -t fastapi-app && docker images — confirm size &lt; 800MB</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Update docker-compose.yml to build from Dockerfile (build: . instead of image:)</span><span class="tag">docker</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s2h2">
+    <div class="hour-header" onclick="toggleHour('s2h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">Prometheus scraping + alert rules</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s2h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write monitoring/prometheus/prometheus.yml — scrape_configs targeting fastapi:8000/metrics</span><span class="tag">monitoring</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write monitoring/prometheus/alerts.yml — Rule 1: service down (up == 0 for 1m)</span><span class="tag">alerts</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Alert Rule 2: high latency (histogram_quantile(0.95, prediction_duration) > your_threshold)</span><span class="tag">alerts</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Alert Rule 3: high error rate (rate(prediction_errors_total[5m]) > threshold)</span><span class="tag">alerts</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add Prometheus service to docker-compose.yml, mount config + alerts</span><span class="tag">docker</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>docker compose up — Prometheus UI at :9090 shows fastapi target as UP, 3 alert rules visible</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s2h3">
+    <div class="hour-header" onclick="toggleHour('s2h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">Grafana auto-provisioning + push</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s2h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write monitoring/grafana/provisioning/datasources/prometheus.yml — type: prometheus, url: http://prometheus:9090</span><span class="tag">grafana</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add Grafana to docker-compose.yml, mount provisioning directory</span><span class="tag">grafana</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>docker compose up → open Grafana :3000 → confirm Prometheus datasource auto-loaded<span class="note">Build dashboard JSON manually or export after creating in UI</span></span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Create dashboard with p50/p95/p99 latency, request rate, error rate panels — export JSON to monitoring/grafana/dashboards/</span><span class="tag">grafana</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit && git push</span><span class="tag">ops</span></li>
+      </ul>
+      <div class="tip-inline">Grafana datasource UID in dashboard JSON must match the UID Grafana assigns. Check: Settings → Data Sources → copy UID → paste into dashboard JSON.</div>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: git push. No AWS resources yet.</div>
+</div>
+
+<!-- SESSION 4 -->
+<div class="session-panel" id="s3">
+  <div class="session-header">
+    <div class="session-title">Session 4 — Pulumi infrastructure (AWS)</div>
+    <div class="session-subtitle">Goal: pulumi up provisions VPC+EC2+S3+ECR+IAM. All resources tagged. pulumi destroy runs clean. First cloud deployment attempted.</div>
+  </div>
+
+  <div class="hour-block open" id="s3h1">
+    <div class="hour-header" onclick="toggleHour('s3h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">Pulumi VPC + EC2 + IAM</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s3h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull, docker compose up — confirm local stack still works</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Decide topology now — write 2 sentences justifying your choice (feeds ADR-1 later)<span class="note">Recommendation: Option A (all EC2) — simplest for this timeline</span></span><span class="tag">design</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write infrastructure/__main__.py — aws.ec2.Vpc, Subnet (public), InternetGateway, RouteTable</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Security group: port 8000 (FastAPI), 3000 (Grafana), 5000 (MLflow), 22 (SSH your IP only) open; all else closed</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>EC2 instance (t3.small), key pair, IAM instance profile for S3+ECR access</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Tag every resource: {"Project": "modelserve"}</span><span class="tag">pulumi</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s3h2">
+    <div class="hour-header" onclick="toggleHour('s3h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">S3 + ECR + stack outputs + pulumi up</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s3h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Add S3 bucket to Pulumi (for MLflow artifacts + Feast offline store), tagged</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add ECR repository with force_delete=True (critical: prevents pulumi destroy failures)</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Export stack outputs: instance_ip, ecr_url, s3_bucket_name</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi up --yes — verify all resources created, note the instance IP</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>SSH to EC2 — confirm instance is reachable</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s3h3">
+    <div class="hour-header" onclick="toggleHour('s3h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">User-data bootstrap + destroy + push</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s3h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write EC2 user_data script — installs Docker, Docker Compose, AWS CLI, does aws ecr get-login-password</span><span class="tag">pulumi</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi up again with user_data — SSH in, verify Docker is installed</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi destroy --yes — confirm all resources removed cleanly</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit && git push</span><span class="tag">ops</span></li>
+      </ul>
+      <div class="tip-inline">Always pulumi destroy before session ends. Dangling resources from previous sessions can cause Pulumi state conflicts next session.</div>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: pulumi destroy --yes THEN git push. Both required.</div>
+</div>
+
+<!-- SESSION 5 -->
+<div class="session-panel" id="s4">
+  <div class="session-header">
+    <div class="session-title">Session 5 — Full cloud deployment end-to-end</div>
+    <div class="session-subtitle">Goal: /predict works on EC2 public IP. Grafana dashboard shows live traffic. MLflow accessible. S3 used for artifacts.</div>
+  </div>
+
+  <div class="hour-block open" id="s4h1">
+    <div class="hour-header" onclick="toggleHour('s4h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">Configure S3 artifact store + Docker push to ECR</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s4h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull — pulumi up --yes to provision fresh AWS resources</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Update docker-compose.yml env vars: MLFLOW_ARTIFACT_ROOT=s3://&lt;bucket&gt;/mlflow</span><span class="tag">mlflow</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>aws ecr get-login-password | docker login --username AWS --password-stdin &lt;ecr_url&gt;</span><span class="tag">ecr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>docker build -t fastapi-app . && docker tag && docker push to ECR</span><span class="tag">ecr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>SCP docker-compose.yml + monitoring/ + feast_repo/ to EC2 via scp or git clone</span><span class="tag">deploy</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s4h2">
+    <div class="hour-header" onclick="toggleHour('s4h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">Deploy + verify end-to-end on EC2</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s4h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>SSH to EC2 — docker compose up (pull images from ECR)</span><span class="tag">deploy</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run train.py on EC2 (or copy MLflow data) — ensure model exists in MLflow Registry</span><span class="tag">mlflow</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run feast materialize-incremental on EC2 — features in Redis</span><span class="tag">feast</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>curl http://&lt;EC2_IP&gt;:8000/predict -d @sample_request.json → valid prediction response</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Open Grafana at &lt;EC2_IP&gt;:3000 — dashboard loads with live data</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Verify AWS resources tagged Project=modelserve: aws ec2 describe-instances --filters Name=tag:Project,Values=modelserve</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s4h3">
+    <div class="hour-header" onclick="toggleHour('s4h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">Architecture diagram draft + ADR-1 + destroy</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s4h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Draw architecture diagram NOW while it's fresh — every component, port, where it runs<span class="note">ASCII art in docs/diagrams/architecture.txt is fine. Labels matter more than polish.</span></span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write ADR-1 in docs/ARCHITECTURE.md — deployment topology decision + why + trade-offs</span><span class="tag">adr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi destroy --yes && git push</span><span class="tag">ops</span></li>
+      </ul>
+      <div class="tip-inline">Write ADRs immediately after making decisions — the reasoning is clearest right now, not in Session 8.</div>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: pulumi destroy --yes THEN git push.</div>
+</div>
+
+<!-- SESSION 6 -->
+<div class="session-panel" id="s5">
+  <div class="session-header">
+    <div class="session-title">Session 6 — GitHub Actions CI/CD pipeline</div>
+    <div class="session-subtitle">Goal: git push to main triggers test → build-and-push → deploy. All 3 jobs pass. Deployed service healthy.</div>
+  </div>
+
+  <div class="hour-block open" id="s5h1">
+    <div class="hour-header" onclick="toggleHour('s5h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">GitHub Secrets + test job + pytest</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s5h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull — pulumi up --yes to provision fresh AWS infra</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Add GitHub Secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, EC2_HOST, EC2_SSH_KEY, ECR_REGISTRY</span><span class="tag">ci</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write app/tests/test_predict.py — at least 1 integration test that actually calls /predict<span class="note">This is the most common failure: tests that mock everything but test nothing real</span></span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write .github/workflows/deploy.yml — test job: runs pytest on push + PR, no AWS needed</span><span class="tag">ci</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Push a commit — verify test job runs and passes on GitHub Actions</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s5h2">
+    <div class="hour-header" onclick="toggleHour('s5h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">build-and-push + deploy jobs</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s5h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write build-and-push job — runs on main only after test, docker build + ECR push</span><span class="tag">ci</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write deploy job — SSH to EC2, docker pull from ECR, docker compose up -d, verify /health returns 200</span><span class="tag">ci</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>No hardcoded secrets anywhere — all via ${{ secrets.NAME }}</span><span class="tag">ci</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Push to main — watch all 3 jobs run in GitHub Actions UI</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>After pipeline: curl &lt;EC2_IP&gt;:8000/health — must return 200</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s5h3">
+    <div class="hour-header" onclick="toggleHour('s5h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">Pipeline re-run test + ADR-2 + destroy</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s5h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Run pipeline a second time from scratch — no manual steps between runs</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write ADR-2 — CI/CD strategy: destroy-and-recreate vs incremental, your choice + reasoning</span><span class="tag">adr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write ADR-3 — data architecture: Postgres for MLflow, Redis for Feast, S3 for artifacts</span><span class="tag">adr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi destroy --yes && git push</span><span class="tag">ops</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: pulumi destroy --yes THEN git push. Confirm green check on main.</div>
+</div>
+
+<!-- SESSION 7 -->
+<div class="session-panel" id="s6">
+  <div class="session-header">
+    <div class="session-title">Session 7 — Engineering documentation (ADRs 4–5 + runbook + README)</div>
+    <div class="session-subtitle">Goal: docs/ARCHITECTURE.md is 80% complete. README done. ADRs 4–5 written. This session is documentation-heavy by design — 19 marks depend on it.</div>
+  </div>
+
+  <div class="hour-block open" id="s6h1">
+    <div class="hour-header" onclick="toggleHour('s6h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">ADRs 4–5 + system overview</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s6h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull — quick docker compose up to confirm everything still works locally</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write section 5.2.1 System Overview in ARCHITECTURE.md — 2–3 paragraphs, what it does, who it serves, design philosophy</span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write ADR-4 — containerization: base image choice, multi-stage strategy, size trade-offs</span><span class="tag">adr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write ADR-5 — monitoring design: alert threshold reasoning, what the dashboard shows, what's missing</span><span class="tag">adr</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Finalize architecture diagram — add port numbers, protocols, deployment locations if missing</span><span class="tag">docs</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s6h2">
+    <div class="hour-header" onclick="toggleHour('s6h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">CI/CD docs + runbook + known limitations</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s6h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write CI/CD pipeline documentation — each job's purpose, triggers, secrets used, failure handling, expected deploy time</span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write Runbook — step-by-step bootstrap from fresh clone, how to deploy new model version, recover from S3 permission loss, recover from Pulumi state corruption, clean teardown</span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write Known Limitations — at least 3 honest items (e.g. Postgres data lost if EC2 dies, no auth on Grafana, no HTTPS)</span><span class="tag">docs</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s6h3">
+    <div class="hour-header" onclick="toggleHour('s6h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">README.md + submission checklist + push</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s6h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Write README.md — 2–3 sentence description, prerequisites, quick setup, endpoints table, env vars table, GitHub Secrets list, link to ARCHITECTURE.md</span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Write .env.example — every environment variable with description, no real values</span><span class="tag">docs</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Run through Section 5.5 submission checklist mentally — note any gaps</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit && git push</span><span class="tag">ops</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="session-end-note">End of session: git push only. No AWS resources in this session (documentation focus).</div>
+</div>
+
+<!-- SESSION 8 -->
+<div class="session-panel" id="s7">
+  <div class="session-header">
+    <div class="session-title">Session 8 — Final hardening + full E2E validation + demo rehearsal</div>
+    <div class="session-subtitle">Goal: repo in final state, green CI on main, full E2E tested from scratch, demo rehearsed at least once. Submission before midnight.</div>
+  </div>
+
+  <div class="hour-block open" id="s7h1">
+    <div class="hour-header" onclick="toggleHour('s7h1')">
+      <span class="hour-label">Hr 1 · 0:00–1:00</span>
+      <span class="hour-title">End-to-end validation from scratch</span>
+      <span class="hour-badge b-m">Mandatory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s7h1">
+        <li><input type="checkbox" onchange="tick(this)"><span>git pull — fresh VM, no prior state. Run docker compose up. Must reach healthy state in &lt;15 min.</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi up --yes — fresh AWS infra from zero</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Push a commit to main — watch all 3 CI jobs pass on GitHub Actions</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>After deploy: curl &lt;IP&gt;:8000/health → 200, curl /predict → valid prediction, Grafana :3000 loads dashboard</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Verify Prometheus shows 3 alert rules. Kill FastAPI container — confirm service-down alert fires</span><span class="tag">test</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Verify AWS resources tagged: aws ec2 describe-instances --filters Name=tag:Project,Values=modelserve</span><span class="tag">test</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s7h2">
+    <div class="hour-header" onclick="toggleHour('s7h2')">
+      <span class="hour-label">Hr 2 · 1:00–2:00</span>
+      <span class="hour-title">Demo rehearsal + fix gaps</span>
+      <span class="hour-badge b-c">Compulsory</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s7h2">
+        <li><input type="checkbox" onchange="tick(this)"><span>Rehearse demo script: cold start (10 min) → architecture walkthrough (15 min) → live demo (15 min) → failure injection (15 min)</span><span class="tag">demo</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Practice explaining each ADR out loud — why you made each decision</span><span class="tag">demo</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Practice live: kill FastAPI → show alert fires → restart → show recovery in Grafana</span><span class="tag">demo</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Practice: "show me p99 latency for last 5 minutes" in Grafana — know which panel to open</span><span class="tag">demo</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Fix any gaps found during rehearsal — documentation inconsistencies, broken alerts, etc.</span><span class="tag">fix</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hour-block" id="s7h3">
+    <div class="hour-header" onclick="toggleHour('s7h3')">
+      <span class="hour-label">Hr 2.5 · 2:00–2:30</span>
+      <span class="hour-title">Final submission + teardown</span>
+      <span class="hour-badge b-w">Deadline</span>
+      <span class="chevron">▶</span>
+    </div>
+    <div class="hour-body">
+      <ul class="tasks" id="tl-s7h3">
+        <li><input type="checkbox" onchange="tick(this)"><span>Confirm repo is public on GitHub</span><span class="tag">submit</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Confirm latest commit on main shows green check on GitHub Actions</span><span class="tag">submit</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Confirm docs/ARCHITECTURE.md has: system overview, architecture diagram, 5 ADRs, CI/CD docs, runbook, known limitations</span><span class="tag">submit</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Confirm README links to ARCHITECTURE.md and lists all endpoints + env vars</span><span class="tag">submit</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>pulumi destroy --yes — clean teardown</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>git add . && git commit -m "Final submission" && git push</span><span class="tag">ops</span></li>
+        <li><input type="checkbox" onchange="tick(this)"><span>Submit repo link before midnight May 7</span><span class="tag">submit</span></li>
+      </ul>
+      <div class="tip-inline">For the TA demo (May 8–9): you will need to pulumi up fresh + push to trigger pipeline again. The system should come up cleanly from just the GitHub repo.</div>
+    </div>
+  </div>
+  <div class="session-end-note">FINAL SESSION: pulumi destroy --yes THEN final git push THEN submit repo link before May 7 midnight.</div>
+</div>
+
+</div>
+
+<div class="progress-strip">
+  <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+  <div class="prog-lbl" id="prog-lbl">0 / 0</div>
+</div>
+
+<script>
+function showSession(idx, btn) {
+  document.querySelectorAll('.session-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
+  document.querySelectorAll('.snav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function toggleHour(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+function tick(cb) {
+  cb.closest('li').classList.toggle('done', cb.checked);
+  updateProgress();
+}
+function updateProgress() {
+  const all = document.querySelectorAll('.tasks input[type=checkbox]');
+  const done = document.querySelectorAll('.tasks input[type=checkbox]:checked');
+  const pct = all.length ? Math.round(done.length / all.length * 100) : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-lbl').textContent = done.length + ' / ' + all.length;
+}
+updateProgress();
+</script>
