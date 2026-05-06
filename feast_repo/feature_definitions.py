@@ -5,7 +5,8 @@
 # ============================================================================
 
 from feast import Entity, FileSource, FeatureView, Field
-from feast.types import Float64, Int64, String
+from feast.value_type import ValueType
+from feast.types import Float32, Float64, Int32, Int64
 from datetime import timedelta
 
 
@@ -16,7 +17,7 @@ from datetime import timedelta
 cc_num = Entity(
     name="cc_num",
     description="Credit card number (entity key)",
-    value_type=Int64,
+    value_type=ValueType.INT64,
 )
 
 
@@ -26,7 +27,7 @@ cc_num = Entity(
 
 fraud_source = FileSource(
     name="fraud_source",
-    path="training/features.parquet",
+    path="../training/features.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created_at",
 )
