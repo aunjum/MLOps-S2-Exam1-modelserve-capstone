@@ -1,11 +1,9 @@
 # Diagrams
 
-Primary architecture diagrams are defined as **Mermaid** in [`../ARCHITECTURE.md`](../ARCHITECTURE.md) so they render in GitHub and most Markdown viewers.
+Diagrams are in **[ARCHITECTURE.md](../ARCHITECTURE.md)** as Mermaid (renders in GitHub/GitLab).
 
-## Exporting to PNG or SVG
+## Export to Image
 
-1. Open [Mermaid Live Editor](https://mermaid.live).
-2. Copy a ` ```mermaid ` … ` ``` ` block from `ARCHITECTURE.md`.
-3. Use **Actions → PNG/SVG** to download.
-
-Keeping diagrams in Markdown avoids drift between code and a static image file.
+1. Go to [Mermaid Live Editor](https://mermaid.live)
+2. Copy a ` ```mermaid ` block from `ARCHITECTURE.md`
+3. Click **Actions → PNG/SVG** to download
