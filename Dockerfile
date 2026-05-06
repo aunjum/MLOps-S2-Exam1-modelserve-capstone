@@ -71,7 +71,8 @@ COPY feast_repo/  ./feast_repo/
 
 # create non-root user
 RUN useradd --no-create-home --shell /bin/false appuser \
- && chown -R appuser:appuser /app
+ && chown -R appuser:appuser /app \
+ && chmod -R 777 /app/feast_repo
 
 USER appuser
 

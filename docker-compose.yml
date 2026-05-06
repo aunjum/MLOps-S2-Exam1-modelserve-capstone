@@ -3,8 +3,6 @@
 # ============================================================================
 # Complete local development stack with all services.
 
-version: "3.9"
-
 # ─────────────────────────────────────────────────────────────
 #  Networks & Volumes
 # ─────────────────────────────────────────────────────────────
@@ -110,7 +108,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION:    ${AWS_DEFAULT_REGION:-ap-southeast-1}
     volumes:
-      - ./feast_repo:/app/feast_repo:ro
+      - ./feast_repo:/app/feast_repo:rw
+      - ./training:/app/training:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
