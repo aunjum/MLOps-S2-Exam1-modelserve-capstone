@@ -1,15 +1,17 @@
 # ModelServe — Feast Feature Store Configuration
 # ================================================
-# Configures Feast for local development with Redis online store.
+# Configures Feast with external Redis (update connection_string below)
 
 project: modelserve
 registry: ./registry.db
 provider: local
 
 # Online store - Redis for fast feature lookups
+# Update this with your Redis connection string:
+#   redis://default:password@host:port
 online_store:
   type: redis
-  connection_string: redis:6379
+  connection_string: redis://default:password@your-redis-host.redis.cloud:12345
 
 # Offline store - File-based (for local development)
 # In production, switch to S3:
