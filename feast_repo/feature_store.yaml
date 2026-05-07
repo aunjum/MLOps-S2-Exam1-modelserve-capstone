@@ -11,7 +11,7 @@ provider: local
 #   redis://default:password@host:port
 online_store:
   type: redis
-  connection_string: redis://default:password@your-redis-host.redis.cloud:12345
+  connection_string: redis://redis:redis@100.84.41.174:6379
 
 # Offline store - File-based (for local development)
 # In production, switch to S3:
