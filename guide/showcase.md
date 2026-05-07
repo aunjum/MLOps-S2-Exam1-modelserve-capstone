@@ -242,6 +242,179 @@ http://localhost:3000 (admin/admin)
 
 ---
 
+---
+
+## Infrastructure Checking (Pulumi)
+
+**File:** `infrastructure/__main__.py`
+
+```bash
+# Check infrastructure status
+pulumi stack
+# Output: aws (ap-southeast-1)
+
+# View outputs
+pulumi stack output
+# instance_ip: 1.2.3.4
+# ecr_repository_url: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/fastapi-app
+# s3_bucket_name: modelserve-mlflow-artifacts
+# security_group_id: sg-0123456789abcdef0
+```
+
+**What Pulumi creates:**
+| Resource | Description |
+|----------|-------------|
+| VPC (10.0.0.0/16) | Isolated network |
+| Subnet (10.0.1.0/24) | Public subnet |
+| EC2 (t3.small) | Compute with Docker |
+| EIP | Static IP |
+| S3 Bucket | MLflow artifacts storage |
+| ECR | Container registry |
+| Security Group | Ports 22, 8000, 3000, 5000, 9090 |
+
+**Why Pulumi?**
+- **IaC**: Infrastructure as Code, version controlled
+- **Reproducible**: Destroy and recreate in minutes
+- **Multi-cloud**: AWS, Azure, GCP support
+
+---
+
+## CI/CD Pipeline (GitHub Actions)
+
+**File:** `.github/workflows/deploy.yml`
+
+```bash
+# Trigger: Push to main branch
+# Pipeline flow:
+# 1. TEST: pytest app/tests/
+# 2. BUILD: docker build → ECR
+# 3. DEPLOY: SSH to EC2 → docker-compose up
+```
+
+**Workflow Jobs:**
+| Job | Description | Secrets Required |
+|-----|-------------|------------------|
+| test | Run pytest | None |
+| build-and-push | Build Docker → ECR | AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ECR_REGISTRY |
+| deploy | SSH + deploy | EC2_HOST, EC2_USER, EC2_SSH_KEY |
+
+**Secrets to Configure:**
+```bash
+# GitHub → Settings → Secrets and variables → Actions
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+ECR_REGISTRY=123456789012.dkr.ecr.ap-southeast-1.amazonaws.com
+EC2_HOST=1.2.3.4
+EC2_USER=ubuntu
+EC2_SSH_KEY=-----BEGIN RSA PRIVATE KEY-----\n...
+```
+
+**Deployment Verification:**
+```bash
+# After deploy, check health
+curl http://<EC2_HOST>:8000/health
+# {"status":"healthy","model_version":"1"}
+```
+
+---
+
+## Feast Feature Store
+
+**Files:** `feast_repo/feature_store.yaml`, `feast_repo/feature_definitions.py`
+
+**Architecture:**
+```
+features.parquet (offline) ──► feast materialize ──► Redis (online)
+                                         │
+                                   Registry (metadata)
+```
+
+**Feature Definitions:**
+```python
+# feast_repo/feature_definitions.py
+feast.Feature(
+    name="amt",
+    dtype=feast.types.Float32,
+    description="Transaction amount",
+)
+# + 6 more: category_enc, trans_hour, trans_dow, city_pop, merch_lat, merch_long
+```
+
+**Materialization:**
+```bash
+# Materialize features from parquet → Redis
+docker exec modelserve-fastapi python -c "
+from feast import FeatureStore
+from datetime import datetime, timezone
+fs = FeatureStore(repo_path='/app/feast_repo')
+fs.materialize(
+    start_date=datetime(2024,1,1,tzinfo=timezone.utc),
+    end_date=datetime.now(timezone.utc)
+)"
+```
+
+**Feature Lookup at Inference:**
+```python
+# app/feature_client.py
+features = feature_client.get_features(entity_id)
+# Returns: {"amt": 50.0, "category_enc": 3, "trans_hour": 14, ...}
+```
+
+**Why Feast?**
+- **Online store**: Sub-millisecond Redis lookup
+- **Offline store**: Batch processing from parquet/S3
+- **Feature registry**: Versioned feature definitions
+- **Consistency**: Same features for training and serving
+
+---
+
+## Feature Engineering
+
+**File:** `training/train.py`
+
+**7 Features for Fraud Detection:**
+
+| Feature | Description | Engineering |
+|---------|-------------|--------------|
+| `amt` | Transaction amount | Raw |
+| `category_enc` | Merchant category | Label encoding |
+| `trans_hour` | Hour of transaction | `dt.hour` |
+| `trans_dow` | Day of week | `dt.weekday()` |
+| `city_pop` | City population | Log transform |
+| `merch_lat` | Merchant latitude | Geocoding |
+| `merch_long` | Merchant longitude | Geocoding |
+
+**Training Process:**
+```python
+# 1. Load 1.3M transactions from CSV
+# 2. Feature engineering (above)
+# 3. Train RandomForest
+clf = RandomForestClassifier(
+    n_estimators=100,
+    max_depth=10,
+    class_weight='balanced',  # Handle imbalanced fraud
+    random_state=42
+)
+# 4. Log to MLflow
+mlflow.log_metric("f1_score", 0.85)
+mlflow.log_metric("precision", 0.90)
+mlflow.log_metric("recall", 0.80)
+# 5. Register model
+mlflow.register_model("models:/FraudDetector/Production")
+# 6. Export features.parquet for Feast
+df.to_parquet("features.parquet")
+```
+
+**Feature Export for Feast:**
+```python
+# Export entity + features for materialization
+features_df = df[['cc_num', 'amt', 'category_enc', 'trans_hour',
+                   'trans_dow', 'city_pop', 'merch_lat', 'merch_long']]
+features_df.to_parquet("features.parquet")
+```
+
+---
+
 ## Quick Reference
 
 | Service | Port | URL |
@@ -249,9 +422,27 @@ http://localhost:3000 (admin/admin)
 | FastAPI | 8000 | http://localhost:8000 |
 | MLflow | 5000 | http://localhost:5000 |
 | Prometheus | 9090 | http://localhost:9090 |
-| Grafana | 3000 | http://localhost:3000 |
+| Grafana | 3001 | http://localhost:3001 (admin/admin) |
 | PostgreSQL | 5432 | localhost:5432 |
 | Redis | 6379 | localhost:6379 |
+
+**Infrastructure Check:**
+```bash
+# Pulumi
+pulumi stack output
+
+# Docker containers
+docker ps
+
+# EC2 SSH
+ssh -i key.pem ubuntu@<instance_ip>
+```
+
+**CI/CD Check:**
+```bash
+# GitHub Actions → repo → Actions
+# Verify: test → build-and-push → deploy
+```
 
 ---
 

@@ -192,16 +192,32 @@ class ModelLoader:
                 pred = self.model.predict(feature_df)[0]
 
                 # Try predict_proba, handle both formats
+                prob = 0.0
                 try:
-                    proba = self.model.predict_proba(feature_df)[0]
+                    # Try direct predict_proba first
+                    if hasattr(self.model, "predict_proba"):
+                        proba = self.model.predict_proba(feature_df)[0]
+                    else:
+                        # Try to get underlying model from pyfunc
+                        raise AttributeError("No predict_proba")
+                except AttributeError:
+                    try:
+                        # Try to extract underlying sklearn model from pyfunc
+                        if hasattr(self.model, "model"):
+                            proba = self.model.model.predict_proba(feature_df)[0]
+                        elif hasattr(self.model, "predict_proba"):
+                            proba = self.model.predict_proba(feature_df)[0]
+                        else:
+                            raise
+                except Exception:
+                    # Fallback: use prediction as probability
+                    prob = 1.0 if pred == 1 else 0.0
+                else:
                     # Handle both binary and multiclass
                     if proba.ndim > 1:
                         prob = proba[1]  # Class 1 probability for binary
                     else:
                         prob = proba[0]
-                except Exception:
-                    # Fallback: use prediction as probability
-                    prob = 1.0 if pred == 1 else 0.0
 
                 return {
                     "prediction": int(pred),

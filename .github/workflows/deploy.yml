@@ -14,7 +14,6 @@ on:
 
 env:
   AWS_REGION: ap-southeast-1
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
   IMAGE_NAME: fastapi-app
 
 jobs:

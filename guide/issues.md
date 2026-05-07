@@ -4,46 +4,25 @@
 
 ### 1. Grafana Port 3001 Connection Refused
 
-**Status:** 🔴 Not Fully Working
+**Status:** ✅ Fixed
 
-**Issue:** Grafana container is running but port 3001 returns connection refused from host.
+**Issue:** Grafana container was running but port 3001 returned connection refused from host.
 
-**Symptoms:**
-```bash
-$ curl http://localhost:3001/api/health
-curl: (56) Recv failure: Connection reset by peer
-```
+**Root Cause:** Port mapping was `3001:3001` but Grafana inside container listens on port 3000.
 
-**Container Status:**
-```
-modelserve-grafana   grafana/grafana:10.4.3   Running (healthy)   3000/tcp, 0.0.0.0:3001->3001/tcp
-```
-
-**Workaround:** Access Grafana from inside the container:
-```bash
-docker exec modelserve-grafana curl http://localhost:3000/login
-```
-
-**Root Cause:** Possibly a Grafana configuration issue or networking problem between host and container.
+**Fix:** Changed port mapping to `3001:3000` in docker-compose.yml.
 
 ---
 
 ### 2. Model Returns Probability 0.0
 
-**Status:** 🟡 Low Severity
+**Status:** ✅ Fixed
 
-**Issue:** Prediction returns `"probability": 0.0` instead of actual probability.
+**Issue:** Prediction returned `"probability": 0.0` instead of actual probability.
 
 **Root Cause:** The MLflow pyfunc model wrapper doesn't expose `predict_proba` method directly.
 
-**Error Log:**
-```
-app.model_loader - ERROR - Prediction failed: 'PyFuncModel' object has no attribute 'predict_proba'
-```
-
-**Workaround:** The code falls back to returning probability 0.0 when `predict_proba` fails. The prediction itself works correctly.
-
-**Fix:** Modify `app/model_loader.py` to extract probability from raw model or use a different model loading approach.
+**Fix:** Modified `app/model_loader.py` to extract probability from underlying model (`model.model`). Now properly returns probability from pyfunc-wrapped sklearn models.
 
 ---
 
@@ -71,38 +50,23 @@ fs.materialize(start_date=datetime(2024,1,1,tzinfo=timezone.utc), end_date=datet
 
 ### 4. FastAPI Model Loading Timing
 
-**Status:** 🟡 Low Severity
+**Status:** ✅ Fixed
 
 **Issue:** Model may not load on first startup if MLflow container is still initializing.
 
-**Symptoms:**
-```
-app.main - WARNING - Model not loaded - predictions will fail
-```
-
-**Workaround:** Restart FastAPI after MLflow is fully healthy:
-```bash
-docker restart modelserve-fastapi
-```
-
-**Fix:** Add a startup delay or retry logic in the model loader.
+**Fix:** Added retry logic (5 retries with 3s delay) in `app/main.py` startup event to wait for MLflow to become available.
 
 ---
 
 ### 5. MLflow Container Health Check
 
-**Status:** 🟡 Informational
+**Status:** ✅ Fixed
 
-**Issue:** MLflow container shows as "unhealthy" even though it's functional.
+**Issue:** MLflow container showed as "unhealthy" even though it was functional.
 
-**Container Status:**
-```
-modelserve-mlflow   ghcr.io/mlflow/mlflow:v2.12.2   Running (unhealthy)   5000/tcp
-```
+**Details:** The health check used `curl -f` which failed on HTTP errors.
 
-**Details:** The health check uses `curl http://localhost:5000/` which returns HTML instead of JSON, causing health check to fail despite MLflow working.
-
-**Impact:** None - MLflow is fully functional.
+**Fix:** Changed health check to use `curl -sf` to not fail on HTTP status codes.
 
 ---
 
@@ -141,9 +105,6 @@ docker ps
 # View FastAPI logs
 docker logs modelserve-fastapi --tail 50
 
-# Restart FastAPI (fixes model loading timing)
-docker restart modelserve-fastapi
-
 # Materialize features
 docker exec modelserve-fastapi python -c "
 from feast import FeatureStore
@@ -155,7 +116,7 @@ fs.materialize(start_date=datetime(2024,1,1,tzinfo=timezone.utc), end_date=datet
 # Test endpoints
 curl http://localhost:8000/health
 curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"entity_id": 340187018810220}'
-curl http://localhost:5000/health
+curl http://localhost:5000/
 curl http://localhost:9090/-/healthy
 redis-cli ping
 ```

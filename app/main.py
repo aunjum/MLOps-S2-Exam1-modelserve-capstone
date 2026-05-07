@@ -69,18 +69,31 @@ async def startup_event():
     """Load model on startup."""
     logger.info("Starting ModelServe API...")
 
-    try:
-        model_loader = get_model_loader()
-        success = model_loader.load()
+    # Retry logic for MLflow timing issue
+    max_retries = 5
+    retry_delay = 3
 
-        if success and model_loader.model_version:
-            metrics.set_model_version(model_loader.model_version)
-            logger.info(f"Model loaded: version={model_loader.model_version}")
-        else:
-            logger.warning("Model not loaded - predictions will fail")
+    for attempt in range(max_retries):
+        try:
+            model_loader = get_model_loader()
+            success = model_loader.load()
 
-    except Exception as e:
-        logger.error(f"Startup failed: {e}")
+            if success and model_loader.model_version:
+                metrics.set_model_version(model_loader.model_version)
+                logger.info(f"Model loaded: version={model_loader.model_version}")
+                break
+            else:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Model not loaded, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                else:
+                    logger.warning("Model not loaded after retries - predictions may fail")
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Startup error: {e}, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Startup failed after {max_retries} attempts: {e}")
 
 
 # ─────────────────────────────────────────────────────────────
