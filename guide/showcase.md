@@ -463,7 +463,40 @@ pulumi stack output
 ssh -i key.pem ubuntu@<instance_ip>
 docker ps
 ```
+
+---
+
+## Troubleshooting
+
+**Common Issues Fixed:**
+| Issue | Fix |
+|-------|-----|
+| Grafana port 3001 refused | Port mapping `3001:3000` in docker-compose |
+| Probability 0.0 | Updated `model_loader.py` to extract from `model.model` |
+| Model loading timing | Added retry logic (5 retries, 3s delay) in `main.py` |
+| MLflow unhealthy | Changed healthcheck to `curl -sf` |
+
+**Debug Commands:**
+```bash
+# View logs
+docker logs modelserve-fastapi --tail 50
+
+# Check containers
+docker ps
+
+# Health checks
+curl http://localhost:5000/
+curl http://localhost:9090/-/healthy
+
+# Restart service
+docker compose restart fastapi
 ```
+
+**Deprecation Warnings (non-breaking):**
+- FastAPI `on_event` → Use lifespan handlers
+- MLflow stages → Will be removed in future
+- Pydantic V1 validators → Migrate to V2
+- Feast serialization → Use version 3
 
 ---
 
