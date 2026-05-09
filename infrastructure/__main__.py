@@ -294,18 +294,18 @@ s3_bucket = aws.s3.Bucket(
         "Name": "modelserve-mlflow",
     },
 
-    opts=pulumi.ResourceOptions(
-        import_="modelserve-mlflow-artifacts"
-    ),
+    # opts=pulumi.ResourceOptions(
+    #     import_="modelserve-mlflow-artifacts"
+    # ),
 )
 
-aws.s3.BucketAclV2(
+aws.s3.BucketAcl(
     "modelserve-mlflow-acl",
     bucket=s3_bucket.id,
     acl="private",
 )
 
-aws.s3.BucketLifecycleConfigurationV2(
+aws.s3.BucketLifecycleConfiguration(
     "modelserve-mlflow-lifecycle",
     bucket=s3_bucket.id,
 
