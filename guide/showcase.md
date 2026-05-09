@@ -248,6 +248,7 @@ http://localhost:3000 (admin/admin)
 
 **File:** `infrastructure/__main__.py`
 
+**Pulumi Commands:**
 ```bash
 # Check infrastructure status
 pulumi stack
@@ -259,62 +260,56 @@ pulumi stack output
 # ecr_repository_url: 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com/fastapi-app
 # s3_bucket_name: modelserve-mlflow-artifacts
 # security_group_id: sg-0123456789abcdef0
+
+# Destroy and recreate
+pulumi destroy
+pulumi up
 ```
 
-**What Pulumi creates:**
-| Resource | Description |
-|----------|-------------|
-| VPC (10.0.0.0/16) | Isolated network |
-| Subnet (10.0.1.0/24) | Public subnet |
-| EC2 (t3.small) | Compute with Docker |
-| EIP | Static IP |
-| S3 Bucket | MLflow artifacts storage |
-| ECR | Container registry |
-| Security Group | Ports 22, 8000, 3000, 5000, 9090 |
+**AWS Console Checking:**
 
-**Why Pulumi?**
-- **IaC**: Infrastructure as Code, version controlled
-- **Reproducible**: Destroy and recreate in minutes
-- **Multi-cloud**: AWS, Azure, GCP support
+| Check This | Where in AWS Console |
+|------------|---------------------|
+| EC2 Instance Running | EC2 → Instances → Search "modelserve" |
+| EIP Attached | EC2 → Elastic IPs |
+| Security Group | EC2 → Security Groups → "modelserve-sg" |
+| S3 Bucket | S3 → Buckets → "modelserve-mlflow-artifacts" |
+| ECR Repository | ECR → Repositories → "fastapi-app" |
+| VPC Created | VPC → Your VPCs → "modelserve-vpc" |
 
 ---
 
-## CI/CD Pipeline (GitHub Actions)
+## CI/CD Checking (GitHub Actions)
 
 **File:** `.github/workflows/deploy.yml`
 
+**GitHub Checking:**
 ```bash
-# Trigger: Push to main branch
-# Pipeline flow:
-# 1. TEST: pytest app/tests/
-# 2. BUILD: docker build → ECR
-# 3. DEPLOY: SSH to EC2 → docker-compose up
+# GitHub → Your Repo → Actions
+# Verify workflow runs: test → build-and-push → deploy
+# Green checkmarks = success
 ```
 
-**Workflow Jobs:**
-| Job | Description | Secrets Required |
-|-----|-------------|------------------|
-| test | Run pytest | None |
-| build-and-push | Build Docker → ECR | AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ECR_REGISTRY |
-| deploy | SSH + deploy | EC2_HOST, EC2_USER, EC2_SSH_KEY |
+**GitHub Secrets to Configure:**
+```
+Settings → Secrets and variables → Actions → New repository secret
 
-**Secrets to Configure:**
-```bash
-# GitHub → Settings → Secrets and variables → Actions
-AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-ECR_REGISTRY=123456789012.dkr.ecr.ap-southeast-1.amazonaws.com
-EC2_HOST=1.2.3.4
-EC2_USER=ubuntu
-EC2_SSH_KEY=-----BEGIN RSA PRIVATE KEY-----\n...
+AWS_ACCESS_KEY_ID         = AKIA...
+AWS_SECRET_ACCESS_KEY     = wJalrXUtnFEMI/...
+ECR_REGISTRY             = 123456789012.dkr.ecr.ap-southeast-1.amazonaws.com
+EC2_HOST                 = 1.2.3.4 (from pulumi stack output)
+EC2_USER                 = ubuntu
+EC2_SSH_KEY              = (paste private key)
 ```
 
-**Deployment Verification:**
-```bash
-# After deploy, check health
-curl http://<EC2_HOST>:8000/health
-# {"status":"healthy","model_version":"1"}
-```
+**AWS Console CI/CD Checks:**
+
+| Check This | Where in AWS Console |
+|------------|---------------------|
+| ECR Image Pushed | ECR → fastapi-app → Tags |
+| EC2 Running | EC2 → Instances → Running |
+| SSH to EC2 | EC2 → Instances → Connect → SSH Client |
+| Security Group Ports | EC2 → Security Groups → Inbound Rules |
 
 ---
 
@@ -415,34 +410,93 @@ features_df.to_parquet("features.parquet")
 
 ---
 
-## Quick Reference
+## Quick Reference (All-in-One)
 
-| Service | Port | URL |
-|---------|------|-----|
-| FastAPI | 8000 | http://localhost:8000 |
-| MLflow | 5000 | http://localhost:5000 |
-| Prometheus | 9090 | http://localhost:9090 |
-| Grafana | 3001 | http://localhost:3001 (admin/admin) |
-| PostgreSQL | 5432 | localhost:5432 |
-| Redis | 6379 | localhost:6379 |
-
-**Infrastructure Check:**
+**Start Local:**
 ```bash
-# Pulumi
-pulumi stack output
+docker compose up -d
+```
 
-# Docker containers
+**Test API:**
+```bash
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{"entity_id": 340187018810220}'
+```
+
+**Train Model:**
+```bash
+python training/train.py
+```
+
+**Materialize Features:**
+```bash
+docker exec modelserve-fastapi python -c "
+from feast import FeatureStore
+from datetime import datetime, timezone
+fs = FeatureStore(repo_path='/app/feast_repo')
+fs.materialize(start_date=datetime(2024,1,1,tzinfo=timezone.utc), end_date=datetime.now(timezone.utc))
+"
+```
+
+**Pulumi (AWS):**
+```bash
+cd infrastructure && pulumi up
+pulumi stack output
+```
+
+**GitHub CI/CD:**
+```bash
+# Push to main → triggers: test → build-and-push → deploy
+# GitHub → Repo → Actions → View workflow runs
+```
+
+**Services:**
+| Service | URL |
+|---------|-----|
+| FastAPI | http://localhost:8000 |
+| MLflow | http://localhost:5000 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3001 (admin/admin) |
+
+**EC2 SSH:**
+```bash
+ssh -i key.pem ubuntu@<instance_ip>
+docker ps
+```
+
+---
+
+## Troubleshooting
+
+**Common Issues Fixed:**
+| Issue | Fix |
+|-------|-----|
+| Grafana port 3001 refused | Port mapping `3001:3000` in docker-compose |
+| Probability 0.0 | Updated `model_loader.py` to extract from `model.model` |
+| Model loading timing | Added retry logic (5 retries, 3s delay) in `main.py` |
+| MLflow unhealthy | Changed healthcheck to `curl -sf` |
+
+**Debug Commands:**
+```bash
+# View logs
+docker logs modelserve-fastapi --tail 50
+
+# Check containers
 docker ps
 
-# EC2 SSH
-ssh -i key.pem ubuntu@<instance_ip>
+# Health checks
+curl http://localhost:5000/
+curl http://localhost:9090/-/healthy
+
+# Restart service
+docker compose restart fastapi
 ```
 
-**CI/CD Check:**
-```bash
-# GitHub Actions → repo → Actions
-# Verify: test → build-and-push → deploy
-```
+**Deprecation Warnings (non-breaking):**
+- FastAPI `on_event` → Use lifespan handlers
+- MLflow stages → Will be removed in future
+- Pydantic V1 validators → Migrate to V2
+- Feast serialization → Use version 3
 
 ---
 
